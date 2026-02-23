@@ -1,122 +1,106 @@
 import streamlit as st
-import sqlite3
-import datetime
-import time
+import birdnet
+import tempfile
+import os
+import pandas as pd
+from streamlit_mic_recorder import mic_recorder
 
-# データベースファイルのパス
-DB_FILE = "chat_history.db"
-PASSWORD = "198311"  # 平文パスワード
+st.title("🐦 鳥の音声識別アプリ（BirdNET）")
 
-# ページ設定
-st.set_page_config(page_title="家族チャット", layout="centered", page_icon="")
-st.write(
-    """<style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>""",
-    unsafe_allow_html=True,
-)
+# -----------------------------
+# 日本語名辞書
+# -----------------------------
+JP_NAME = {
+    "Long-tailed Tit": "エナガ",
+    "Northern Pintail": "オナガガモ",
+    "Green-winged Teal": "コガモ",
+    "Mallard": "マガモ",
+    "Eastern Spot-billed Duck": "カルガモ",
+    "Gray Heron": "アオサギ",
+    "Common Pochard": "ホシハジロ",
+    "Oriental Greenfinch": "カワラヒワ",
+    "Large-billed Crow": "ハシブトガラス",
+    "Little Egret": "コサギ",
+    "Meadow Bunting": "ホオジロ",
+    "Black-faced Bunting": "アオジ",
+    "Eurasian Coot": "オオバン",
+    "Japanese Bush Warbler": "ウグイス",
+    "Brown-eared Bulbul": "ヒヨドリ",
+    "Bull-headed Shrike": "モズ",
+    "Eurasian Wigeon": "ヒドリガモ",
+    "Black Kite": "トビ",
+    "White Wagtail": "ハクセキレイ",
+    "Japanese Wagtail": "セグロセキレイ",
+    "Osprey": "ミサゴ",
+    "Japanese Tit": "シジュウカラ",
+    "Eurasian Tree Sparrow": "スズメ",
+    "Great Cormorant": "カワウ",
+    "Daurian Redstart": "ジョウビタキ",
+    "Varied Tit": "ヤマガラ",
+    "White-cheeked Starling": "ムクドリ",
+    "Oriental Turtle-Dove": "キジバト",
+    "Little Grebe": "カイツブリ",
+    "Dusky Thrush": "ツグミ",
+    "Pale Thrush": "シロハラ",
+    "Japanese Pygmy Woodpecker": "コゲラ",
+    "Warbling White-eye": "メジロ"
+}
 
-# データベース接続とテーブル作成
-def init_db():
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user TEXT NOT NULL,
-                message TEXT NOT NULL,
-                timestamp TEXT NOT NULL
-            )
-        """)
-        conn.commit()
-        conn.close()
-    except sqlite3.Error as e:
-        st.error(f"データベースの初期化に失敗しました: {e}")
+# -----------------------------
+# モデルロード（初回のみ）
+# -----------------------------
+@st.cache_resource
+def load_model():
+    return birdnet.load("acoustic", "2.4", "tf")
 
-# メッセージをデータベースに保存
-def save_message(user, message):
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute("INSERT INTO messages (user, message, timestamp) VALUES (?, ?, ?)", (user, message, timestamp))
-        conn.commit()
-        conn.close()
-    except sqlite3.Error as e:
-        st.error(f"メッセージの保存に失敗しました: {e}")
+model = load_model()
 
-# メッセージ履歴を取得
-def get_messages(limit=None):
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        if limit:
-            cursor.execute("SELECT user, message, timestamp FROM messages ORDER BY timestamp DESC LIMIT ?", (limit,))
-        else:
-            cursor.execute("SELECT user, message, timestamp FROM messages ORDER BY timestamp")
-        messages = cursor.fetchall()
-        conn.close()
-        return messages[::-1]
-    except sqlite3.Error as e:
-        st.error(f"メッセージの取得に失敗しました: {e}")
-        return []
+# -----------------------------
+# 音声入力方法選択
+# -----------------------------
+option = st.radio("音声入力方法を選択してください", ["🎤 録音する", "📁 ファイルアップロード"])
 
-# アプリケーションの初期化
-init_db()
+audio_file = None
 
-# パスワード入力
-if "password_correct" not in st.session_state:
-    st.session_state.password_correct = False
-
-if not st.session_state.password_correct:
-    password = st.text_input("パスワードを入力してください", type="password")
-    if password == PASSWORD:
-        st.session_state.password_correct = True
-        st.experimental_rerun()
-    elif password != "":
-        st.error("パスワードが違います")
-
-if st.session_state.password_correct:
-    # 全履歴表示フラグ
-    if "show_all_messages" not in st.session_state:
-        st.session_state.show_all_messages = False
-
-    # 入力フォームを最上部に配置
-    with st.container():
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            user = st.selectbox("名前を選択", ["父", "母", "ののか", "まさむね"])
-        with col2:
-            prompt = st.chat_input("メッセージを入力してください")
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # メッセージ送信処理
-    if user and prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt, "user": user})
-        save_message(user, prompt)
-        st.balloons()  # バルーンを飛ばす
-        time.sleep(2) # 2秒待機
-        st.experimental_rerun()
-
-    # メッセージ表示領域
-    message_area = st.container()
-
-    # メッセージ履歴を表示（最新のメッセージが上に表示されるように変更）
-    with message_area:
-        messages_to_show = get_messages() if st.session_state.show_all_messages else get_messages(5)
-
-        for message in messages_to_show[::-1]:
-            with st.chat_message(message[0]):
-                st.markdown(message[1])
-                st.caption(message[2]) # タイムスタンプのみ表示
-
-    # 過去の履歴を見るボタンを最下部に配置
-    if st.button("過去の履歴を全て見る", key="show_all_button"):
-        st.session_state.show_all_messages = True
+if option == "🎤 録音する":
+    audio = mic_recorder(start_prompt="録音開始", stop_prompt="録音停止")
+    if audio:
+        audio_file = audio["bytes"]
 
 else:
-    st.stop()
+    uploaded = st.file_uploader("音声ファイルをアップロード", type=["wav", "mp3"])
+    if uploaded:
+        audio_file = uploaded.read()
+
+# -----------------------------
+# 推論
+# -----------------------------
+if audio_file:
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        tmp.write(audio_file)
+        tmp_path = tmp.name
+
+    st.info("解析中...")
+
+    predictions = model.predict(
+        tmp_path,
+        custom_species_list="species_list.txt"
+    )
+
+    df = predictions
+
+    if not df.empty:
+        top = df.sort_values("confidence", ascending=False).iloc[0]
+        english_name = top["common_name"]
+        confidence = top["confidence"]
+
+        jp_name = JP_NAME.get(english_name, english_name)
+
+        st.success(f"🐦 推定種: {jp_name}")
+        st.write(f"信頼度: {confidence:.2f}")
+
+    else:
+        st.warning("鳥を検出できませんでした。")
+
+    os.remove(tmp_path)
