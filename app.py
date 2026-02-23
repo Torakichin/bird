@@ -1,7 +1,6 @@
 import streamlit as st
 import tempfile
 import os
-import pandas as pd
 import birdnet
 
 st.title("🐦 BirdNET 動作確認アプリ")
@@ -26,24 +25,27 @@ if uploaded:
         predictions = model.predict(tmp_path)
         df = predictions.to_dataframe()
 
-        st.write("列名確認:", df.columns)
+        st.write("列一覧:", list(df.columns))
 
         if not df.empty:
 
             df_sorted = df.sort_values("confidence", ascending=False)
             top = df_sorted.iloc[0]
 
-            # 🔥 列名吸収ロジック
-            if "common_name" in df.columns:
-                name = top["common_name"]
-            elif "scientific_name" in df.columns:
-                name = top["scientific_name"]
-            elif "species" in df.columns:
-                name = top["species"]
-            elif "label" in df.columns:
-                name = top["label"]
-            else:
-                name = "UNKNOWN_COLUMN"
+            # -----------------------------
+            # 種名抽出ロジック（完全版）
+            # -----------------------------
+            name = None
+
+            # ① 列にある場合
+            for col in ["common_name", "scientific_name", "species", "label"]:
+                if col in df.columns:
+                    name = top[col]
+                    break
+
+            # ② indexに入っている場合
+            if name is None:
+                name = top.name  # ← ここが重要
 
             confidence = top["confidence"]
 
