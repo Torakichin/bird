@@ -6,9 +6,6 @@ import birdnet
 
 st.title("🐦 BirdNET 動作確認アプリ")
 
-# -----------------------------
-# モデルロード
-# -----------------------------
 @st.cache_resource
 def load_model():
     return birdnet.load("acoustic", "2.4", "tf")
@@ -26,24 +23,31 @@ if uploaded:
     st.info("解析中...")
 
     try:
-        # 予測実行
         predictions = model.predict(tmp_path)
-
-        # 🔥 ここが重要
         df = predictions.to_dataframe()
+
+        st.write("列名確認:", df.columns)
 
         if not df.empty:
 
             df_sorted = df.sort_values("confidence", ascending=False)
-
-            st.write("上位5件")
-            st.dataframe(df_sorted.head())
-
             top = df_sorted.iloc[0]
-            english_name = top["common_name"]
+
+            # 🔥 列名吸収ロジック
+            if "common_name" in df.columns:
+                name = top["common_name"]
+            elif "scientific_name" in df.columns:
+                name = top["scientific_name"]
+            elif "species" in df.columns:
+                name = top["species"]
+            elif "label" in df.columns:
+                name = top["label"]
+            else:
+                name = "UNKNOWN_COLUMN"
+
             confidence = top["confidence"]
 
-            st.success(f"Top Prediction: {english_name}")
+            st.success(f"Top Prediction: {name}")
             st.write(f"Confidence: {confidence:.3f}")
 
         else:
