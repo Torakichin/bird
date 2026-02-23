@@ -25,28 +25,12 @@ if uploaded:
         predictions = model.predict(tmp_path)
         df = predictions.to_dataframe()
 
-        st.write("列一覧:", list(df.columns))
-
         if not df.empty:
 
             df_sorted = df.sort_values("confidence", ascending=False)
             top = df_sorted.iloc[0]
 
-            # -----------------------------
-            # 種名抽出ロジック（完全版）
-            # -----------------------------
-            name = None
-
-            # ① 列にある場合
-            for col in ["common_name", "scientific_name", "species", "label"]:
-                if col in df.columns:
-                    name = top[col]
-                    break
-
-            # ② indexに入っている場合
-            if name is None:
-                name = top.name  # ← ここが重要
-
+            name = top["species_name"]   # ← ここだけ固定
             confidence = top["confidence"]
 
             st.success(f"Top Prediction: {name}")
