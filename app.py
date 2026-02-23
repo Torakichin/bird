@@ -1,9 +1,25 @@
 import streamlit as st
-import birdnet
 import tempfile
 import os
 import pandas as pd
-from streamlit_mic_recorder import mic_recorder
+
+# 旧birdnet優先
+try:
+    import birdnet
+    USE_LEGACY = True
+except ImportError:
+    USE_LEGACY = False
+
+# 新API fallback
+if not USE_LEGACY:
+    try:
+        from birdnet_analyzer import Analyzer
+        USE_ANALYZER = True
+    except ImportError:
+        USE_ANALYZER = False
+else:
+    USE_ANALYZER = False
+
 
 st.title("🐦 鳥の音声識別アプリ（BirdNET）")
 
@@ -47,59 +63,82 @@ JP_NAME = {
 }
 
 # -----------------------------
-# モデルロード（初回のみ）
+# モデルロード
 # -----------------------------
 @st.cache_resource
 def load_model():
-    return birdnet.load("acoustic", "2.4", "tf")
+    if USE_LEGACY:
+        return birdnet.load("acoustic", "2.4", "tf")
+    elif USE_ANALYZER:
+        return Analyzer()
+    else:
+        st.error("BirdNETがインストールされていません")
+        st.stop()
 
 model = load_model()
 
-# -----------------------------
-# 音声入力方法選択
-# -----------------------------
-option = st.radio("音声入力方法を選択してください", ["🎤 録音する", "📁 ファイルアップロード"])
+uploaded = st.file_uploader("音声ファイルをアップロード", type=["wav", "mp3"])
 
-audio_file = None
-
-if option == "🎤 録音する":
-    audio = mic_recorder(start_prompt="録音開始", stop_prompt="録音停止")
-    if audio:
-        audio_file = audio["bytes"]
-
-else:
-    uploaded = st.file_uploader("音声ファイルをアップロード", type=["wav", "mp3"])
-    if uploaded:
-        audio_file = uploaded.read()
-
-# -----------------------------
-# 推論
-# -----------------------------
-if audio_file:
+if uploaded:
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-        tmp.write(audio_file)
+        tmp.write(uploaded.read())
         tmp_path = tmp.name
 
     st.info("解析中...")
 
-    predictions = model.predict(
-        tmp_path,
-        custom_species_list="species_list.txt"
-    )
+    # -----------------------------
+    # 推論
+    # -----------------------------
+    if USE_LEGACY:
+        predictions = model.predict(
+            tmp_path,
+            custom_species_list="species_list.txt",
+        )
+    else:
+        predictions = model.analyze(tmp_path)
 
-    df = predictions
+    english_name = None
+    confidence = None
 
-    if not df.empty:
-        top = df.sort_values("confidence", ascending=False).iloc[0]
-        english_name = top["common_name"]
-        confidence = top["confidence"]
+    # -----------------------------
+    # DataFrame型
+    # -----------------------------
+    if hasattr(predictions, "empty"):
+        if not predictions.empty:
+            top = predictions.sort_values("confidence", ascending=False).iloc[0]
+            english_name = top["common_name"]
+            confidence = top["confidence"]
 
+    # -----------------------------
+    # list型
+    # -----------------------------
+    elif isinstance(predictions, list):
+        if len(predictions) > 0:
+            top = sorted(predictions, key=lambda x: x["confidence"], reverse=True)[0]
+            english_name = top["common_name"]
+            confidence = top["confidence"]
+
+    # -----------------------------
+    # dict型
+    # -----------------------------
+    elif isinstance(predictions, dict):
+        if "predictions" in predictions and len(predictions["predictions"]) > 0:
+            top = sorted(
+                predictions["predictions"],
+                key=lambda x: x["confidence"],
+                reverse=True,
+            )[0]
+            english_name = top["common_name"]
+            confidence = top["confidence"]
+
+    # -----------------------------
+    # 出力
+    # -----------------------------
+    if english_name:
         jp_name = JP_NAME.get(english_name, english_name)
-
         st.success(f"🐦 推定種: {jp_name}")
         st.write(f"信頼度: {confidence:.2f}")
-
     else:
         st.warning("鳥を検出できませんでした。")
 
