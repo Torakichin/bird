@@ -7,7 +7,7 @@ import birdnet
 st.title("🐦 BirdNET 動作確認アプリ")
 
 # -----------------------------
-# モデルロード（旧birdnet固定）
+# モデルロード
 # -----------------------------
 @st.cache_resource
 def load_model():
@@ -15,9 +15,6 @@ def load_model():
 
 model = load_model()
 
-# -----------------------------
-# 音声アップロードのみ（まずは録音なし）
-# -----------------------------
 uploaded = st.file_uploader("音声ファイルをアップロード", type=["wav", "mp3"])
 
 if uploaded:
@@ -29,36 +26,28 @@ if uploaded:
     st.info("解析中...")
 
     try:
+        # 予測実行
         predictions = model.predict(tmp_path)
 
-        # デバッグ用：型確認
-        st.write("返り値の型:", type(predictions))
+        # 🔥 ここが重要
+        df = predictions.to_dataframe()
 
-        # DataFrame想定（birdnet 0.2.11）
-        if hasattr(predictions, "empty"):
+        if not df.empty:
 
-            if not predictions.empty:
-                st.write("予測結果（上位5件）")
-                st.dataframe(
-                    predictions.sort_values("confidence", ascending=False).head()
-                )
+            df_sorted = df.sort_values("confidence", ascending=False)
 
-                top = predictions.sort_values(
-                    "confidence", ascending=False
-                ).iloc[0]
+            st.write("上位5件")
+            st.dataframe(df_sorted.head())
 
-                english_name = top["common_name"]
-                confidence = top["confidence"]
+            top = df_sorted.iloc[0]
+            english_name = top["common_name"]
+            confidence = top["confidence"]
 
-                st.success(f"Top Prediction: {english_name}")
-                st.write(f"Confidence: {confidence:.3f}")
-
-            else:
-                st.warning("予測結果が空です")
+            st.success(f"Top Prediction: {english_name}")
+            st.write(f"Confidence: {confidence:.3f}")
 
         else:
-            st.warning("予測結果がDataFrameではありません")
-            st.write(predictions)
+            st.warning("予測結果が空です")
 
     except Exception as e:
         st.error("エラーが発生しました")
