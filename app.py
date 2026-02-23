@@ -2,9 +2,10 @@ import streamlit as st
 import tempfile
 import os
 import birdnet
+import base64
 
 # -----------------------------
-# ページ設定（アイコン変更）
+# ページ設定
 # -----------------------------
 st.set_page_config(
     page_title="ピヨピヨ判定くん",
@@ -12,10 +13,32 @@ st.set_page_config(
     layout="centered"
 )
 
+# -----------------------------
+# iPhoneホーム画面アイコンを🐦に変更
+# -----------------------------
+bird_icon_svg = """
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180">
+  <rect width="100%" height="100%" fill="white"/>
+  <text x="50%" y="55%" text-anchor="middle" font-size="140">🐦</text>
+</svg>
+"""
+
+b64 = base64.b64encode(bird_icon_svg.encode()).decode()
+
+st.markdown(
+    f"""
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,{b64}">
+    """,
+    unsafe_allow_html=True
+)
+
+# -----------------------------
+# タイトル
+# -----------------------------
 st.title("🐦 ピヨピヨ判定くん｜鳥の鳴き声解析アプリ")
 
 # -----------------------------
-# 日本語変換辞書
+# 英語→日本語変換辞書
 # -----------------------------
 bird_translation = {
     "Long-tailed Tit": "エナガ",
