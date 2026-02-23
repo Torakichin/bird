@@ -1,0 +1,33 @@
+Aegithalos caudatus_Long-tailed Tit
+Anas acuta_Northern Pintail
+Anas crecca_Green-winged Teal
+Anas platyrhynchos_Mallard
+Anas zonorhyncha_Eastern Spot-billed Duck
+Ardea cinerea_Gray Heron
+Aythya ferina_Common Pochard
+Chloris sinica_Oriental Greenfinch
+Corvus macrorhynchos_Large-billed Crow
+Egretta garzetta_Little Egret
+Emberiza cioides_Meadow Bunting
+Emberiza spodocephala_Black-faced Bunting
+Fulica atra_Eurasian Coot
+Horornis diphone_Japanese Bush Warbler
+Hypsipetes amaurotis_Brown-eared Bulbul
+Lanius bucephalus_Bull-headed Shrike
+Mareca penelope_Eurasian Wigeon
+Milvus migrans_Black Kite
+Motacilla alba_White Wagtail
+Motacilla grandis_Japanese Wagtail
+Pandion haliaetus_Osprey
+Parus minor_Japanese Tit
+Passer montanus_Eurasian Tree Sparrow
+Phalacrocorax carbo_Great Cormorant
+Phoenicurus auroreus_Daurian Redstart
+Sittiparus varius_Varied Tit
+Spodiopsar cineraceus_White-cheeked Starling
+Streptopelia orientalis_Oriental Turtle-Dove
+Tachybaptus ruficollis_Little Grebe
+Turdus eunomus_Dusky Thrush
+Turdus pallidus_Pale Thrush
+Yungipicus kizuki_Japanese Pygmy Woodpecker
+Zosterops japonicus_Warbling White-eye
